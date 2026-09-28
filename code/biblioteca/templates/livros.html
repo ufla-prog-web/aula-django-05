@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block titulo %}
+    Portal Biblioteca - Livros
+{% endblock %}
+
+{% block conteudo %}
+    <main class="container mt-5">
+        <h1>Livros</h1>
+        {% for l in livros %}
+            <div class="card">
+                <div class="card-header card-title-obra">
+                    <em>Livro:</em> {{ l.nome }}
+                </div>
+                <div class="card-body">
+                    <p class="card-title"><em>Autor:</em> {{ l.autor }}</p>
+                    <p class="card-title"><em>Ano:</em> {{ l.ano }}</p>
+                </div>
+            </div>
+            <br>
+        {% endfor %}
+    </main>
+{% endblock %}

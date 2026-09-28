@@ -1,0 +1,37 @@
+body {
+    font-family: Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+h1 {
+    color: #343a40;
+}
+
+header {
+    background-color: #4D70EF;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    width: 100%;
+    background-color: #4D70EF;
+    margin-top: auto;
+}
+
+.card {
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: scale(1.02);
+}
+
+.card-title-obra {
+    background-color: #375BDC;
+    color: white;
+}

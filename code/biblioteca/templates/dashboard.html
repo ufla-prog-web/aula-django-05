@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block titulo %}
+    Portal Biblioteca - Dashboard
+{% endblock %}
+
+{% block conteudo %}
+    <main class="container mt-5">
+        <h1>Dashboard</h1>
+        <p>Visualize aqui os gráficos e informações de dados do Portal Biblioteca.</p>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Dashboard 1</h5>
+                        <p class="card-text">Informações sobre o número de obras por categoria em gráfico de barras.</p>                        
+                        <div class="chart-container" style="position: relative; height:40vh;">
+                            <canvas id="graficoNumVolumes"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Dashboard 2</h5>
+                        <p class="card-text">Informações sobre o número de obras por categoria em gráfico de pizza.</p>
+                        <div class="chart-container" style="position: relative; height:40vh;">
+                            <canvas id="graficoPizza"></canvas>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script>
+        const vlabels = {{ labels|safe }};
+        const vdata = {{ data|safe }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{% static 'script.js' %}"></script>
+{% endblock %}

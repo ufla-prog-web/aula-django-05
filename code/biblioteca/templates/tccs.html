@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block titulo %}
+    Portal Biblioteca - TCCs
+{% endblock %}
+
+{% block conteudo %}
+    <main class="container mt-5">
+        <h1>Trabalhos de Conclusão de Curso</h1>
+        {% for tcc in tccs %}
+            <div class="card">
+                <div class="card-header card-title-obra">
+                    <em>Título:</em> {{ tcc.titulo }}
+                </div>
+                <div class="card-body">
+                    <p class="card-title"><em>Autor:</em> {{ tcc.autor }}</p>
+                    <center><a href="tccs/detalhes/{{ tcc.id }}" class="btn btn-primary">Ver Detalhes</a></center>
+                </div>
+            </div>
+            <br>
+        {% endfor %}
+    </main>
+{% endblock %}
