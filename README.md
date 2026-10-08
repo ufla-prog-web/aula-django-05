@@ -99,7 +99,7 @@ A seguir estão listados os principais recursos empregados no desenvolvimento de
 
 <a href="#índice"><img align="right" width="15" height="15" src="./docs/up-arrow.png" alt="Voltar para topo"></a>
 
-O objetivo desta aula é dar continuidade à construção do projeto Portal da Biblioteca utilizando o framework Python Django. Aprenderemos a criar scripts para popular o BD com dados artificiais. Definiremos uma nova tela para realização de buscas. Incluiremos imagens para os livros, PDF e resumo para os TCCs. Por fim, iremos dockerizar a aplicação e trocar o BD SQLite para Postgres.
+O objetivo desta aula é dar continuidade à construção do projeto Portal da Biblioteca utilizando o framework Python Django. Aprenderemos a criar scripts para popular o BD com dados artificiais. Definiremos uma nova tela para realização de buscas. Incluiremos imagens para os livros, PDF e resumo para os TCCs. Traduziremos as views que estão no formato FBV para CBV. Entenderemos o que é o ataque XSS e SQL Injection. Por fim, iremos dockerizar a aplicação e trocar o BD SQLite para Postgres.
 
 A animação abaixo mostra de forma visual o resultado esperado nesta aula.
 
@@ -521,7 +521,7 @@ Crie um arquivo chamado `busca.html` e salva na pasta `biblioteca/templates`, co
                         <p class="card-text">
                             <strong>Autor:</strong> {{ tcc.autor }} <br>
                             <strong>Ano:</strong> {{ tcc.ano }} <br>
-                            <a href="tccs/detalhes/{{ tcc.id }}" class="btn btn-sm btn-outline-primary">Ver Detalhes</a>
+                            <a href="/tccs/detalhes/{{ tcc.id }}" class="btn btn-sm btn-outline-primary">Ver Detalhes</a>
                         </p>
                     </div>
                 </div>
@@ -739,7 +739,7 @@ Para isso, troque o conteúdo do arquivo `biblioteca/templates/tccs.html` para o
                         <div class="card-body align-items-start">
                             <p class="card-title"><strong>Título:</strong> {{ tcc.titulo }}</p>
                             <p class="card-text mb-1"><strong>Autor:</strong> {{ tcc.autor }}</p>
-                            <center><a href="tccs/detalhes/{{ tcc.id }}" class="btn btn-primary">Ver Detalhes</a></center>
+                            <center><a href="/tccs/detalhes/{{ tcc.id }}" class="btn btn-primary">Ver Detalhes</a></center>
                         </div>
                     </div>
                 </div>
@@ -812,6 +812,471 @@ python3 manage.py runserver
 Acesse no navegador a página [http://127.0.0.1:8000/tccs](http://127.0.0.1:8000/tccs), clique em um TCC e clique em ver PDF.
 
 Experimente acessar o ambiente administrativo e cadastrar um PDF para os TCCs. Um PDF de exemplo pode ser encontrado dentro da pasta recursos. Experimente cadastrar também um resumo para o TCC. Em seguida, visualize o resultado na tela de TCCs.
+
+### Compreendendo o Que é CBV
+
+Nessa etapa, iremos entender o que é uma *Class Based Views* (CBV), mas para isso é importante também entender que as views que criamos estão no formato *Function Based Views* (FBV).
+
+Uma FBV é uma view implementada como uma **função Python** que recebe uma requisição HTTP e retorrna uma resposta HTTP.
+
+Abaixo temos um exemplo simples de uma FBV (`views.py`):
+
+```python
+from django.shortcuts import render
+
+def principal(request):
+    return render(request, "principal.html")
+```
+
+Já o arquivo de `urls.py` fica assim:
+
+```python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.principal, name='principal'),
+]
+```
+
+Repare que esse formato de view é o que trabalhamos até agora, ou seja, as views que criamos estão no formato FBV.
+
+Uma outra opção para criar as views é criar uma CBV. No Django, *Class Based Views* (CBV) são views implementadas como classes Python, em vez de funções.
+
+Uma CBV equivalente ao exemplo acima é apresentado abaixo (`views.py`):
+
+```python
+from django.views import View
+from django.shortcuts import render
+
+class PrincipalView(View):
+    def get(self, request):
+        return render(request, "principal.html")
+```
+
+Já o arquivo de `urls.py` fica assim:
+
+```python
+from django.urls import path
+from .views import PrincipalView
+
+urlpatterns = [
+    path("", PrincipalView.as_view(), name="principal"),
+]
+```
+
+O método `as_view()` transforma a classe em uma view que o Django consegue usar.
+
+A grande vantagem das CBVs é que elas permitem organizar melhor comportamentos diferentes da mesma página. Por exemplo:
+
+```python
+class LivroView(View):
+
+    def get(self, request):
+        # exibir formulário
+        return render(request, "livro.html")
+
+    def post(self, request):
+        # processar formulário
+        ...
+```
+
+Aqui:
+
+* `get()` trata requisições GET
+* `post()` trata requisições POST
+
+Além disso, o Django fornece várias CBVs prontas, muito úteis para CRUD: ListView, DetailView, CreateView, UpdateView e DeleteView.
+
+### Transformar as Views em CBV
+
+Primeiramente, iremos transformar a view `principal` em uma `TemplateView`, para isso troque:
+
+```python
+def principal(request):
+    template = loader.get_template('principal.html')
+    return HttpResponse(template.render({}, request))
+```
+
+Por esse código abaixo:
+
+```python
+...
+from django.views.generic import TemplateView
+
+class PrincipalView(TemplateView):
+    template_name = "principal.html"
+...
+```
+
+No arquivo de `biblioteca/urls.py` troque:
+
+```python
+...
+    path('', views.principal, name='principal'), # remova 
+...
+```
+
+Por:
+
+```python
+from .views import PrincipalView # inclua essa importação
+...
+
+    path('', PrincipalView.as_view(), name='principal'), # inclua essa linha
+```
+
+Repare que o código da view ficou ligeiramente menor e mais limpo.
+
+Execute a aplicação e a mesma deve continuar a funcionar da mesma forma.
+
+Agora, iremos transformar a view `livros` em uma ListView, para isso troque:
+
+```python
+def livros(request): 
+    livros = Livro.objects.all()
+    context = {
+        'livros': livros
+    }
+    template = loader.get_template('livros.html')
+    return HttpResponse(template.render(context, request))
+```
+
+Por essa classe:
+
+```python
+...
+from django.views.generic import ListView
+
+class LivroListView(ListView):
+    model = Livro
+    template_name = "livros.html"
+    context_object_name = "livros"
+...
+```
+
+**Explicação:** O Django automaticamente executará algo equivalente a `Livro.objects.all()` e enviará para o template.
+
+No arquivo de `biblioteca/urls.py` troque:
+
+```python
+...
+    path('livros/', views.livros, name='livros'), # remova 
+...
+```
+
+Por:
+
+```python
+from .views import LivroListView # inclua essa importação
+...
+    path('livros/', LivroListView.as_view(), name='livros'), # inclua essa linha
+...
+```
+
+Execute a aplicação e a mesma deve continuar a funcionar da mesma forma.
+
+Agora, iremos transformar a view `tccs` em uma ListView, para isso troque:
+
+```python
+def tccs(request):
+    tccs = TCC.objects.all().values()
+    context = {
+        'tccs': tccs,
+    }
+    template = loader.get_template('tccs.html')
+    return HttpResponse(template.render(context, request))
+```
+
+Por essa classe:
+
+```python
+...
+
+class TCCListView(ListView):
+    model = TCC
+    template_name = "tccs.html"
+    context_object_name = "tccs"
+...
+```
+
+No arquivo de `biblioteca/urls.py` troque:
+
+```python
+...
+    path('tccs', views.tccs, name='tccs'), # remova 
+...
+```
+
+Por:
+
+```python
+from .views import TCCListView # inclua essa importação
+...
+    path('tccs/', TCCListView.as_view(), name='tccs'), # inclua essa linha
+...
+```
+
+Execute a aplicação e a mesma deve continuar a funcionar da mesma forma.
+
+Agora, iremos transformar a view `tcc_detalhes` em uma DetailView, para isso troque:
+
+```python
+def tcc_detalhes(request, id):
+    tcc = TCC.objects.get(id=id)
+    context = {
+        'tcc': tcc,
+    }
+    template = loader.get_template('tcc_detalhes.html')
+    return HttpResponse(template.render(context, request))
+```
+
+Por essa classe:
+
+```python
+from django.views.generic import DetailView
+...
+
+class TCCDetailView(DetailView):
+    model = TCC
+    template_name = "tcc_detalhes.html"
+    context_object_name = "tcc"
+...
+```
+
+No arquivo de `biblioteca/urls.py` troque:
+
+```python
+...
+    path('tccs/detalhes/<int:id>', views.tcc_detalhes, name='tcc_detalhes'), # remova 
+...
+```
+
+Por:
+
+```python
+from .views import TCCDetailView # inclua essa importação
+...
+    path('tccs/detalhes/<int:pk>/', TCCDetailView.as_view(), name='tcc_detalhes'), # inclua essa linha
+...
+```
+
+Execute a aplicação e a mesma deve continuar a funcionar da mesma forma.
+
+Uma das principais ideias das CBVs genéricas do Django é reutilizar comportamentos muito comuns em aplicações web.
+
+### Entender o Ataque XSS
+
+No contexto do Django, XSS (*Cross-Site Scripting*) é uma vulnerabilidade em que um usuário mal-intencionado consegue inserir código JavaScript em uma página web e fazer esse código ser executado no navegador de outros usuários.
+
+Para ilustrar como esse ataque funciona, modifique a linha abaixo do arquivo `busca.html`:
+
+```html
+{% if query %}
+    <h5>Resultados para: <strong>{{ query }}</strong></h5>
+{% endif %}
+```
+
+Por essa linha:
+
+```html
+{% if query %}
+    <h5>Resultados para: <strong>{{ query | safe }}</strong></h5>
+{% endif %}
+```
+
+Repare que foi incluido um filtro `| safe` na query. Isso irá gerar uma brecha de segurança na aplicação.
+
+Agora, com a aplicação sendo executada vá na página de busca e entre com o seguinte código no campo de busca ao acervo e clique em buscar:
+
+```javascript
+<script>
+    alert("Ataque XSS")
+</script>
+```
+
+Repare que o site executou o javascript enviado em um campo de formulário.
+
+Agora, experimente enviar o código abaixo:
+
+```javascript
+<script>
+    document.body.innerHTML = "Página modificada";
+</script>
+```
+
+Repare que o site executou o javascript enviado e modificou o conteúdo da página.
+
+Você pode também cadastrar código HTML não só Javascript. Envie o código abaixo e veja a saída na tela de busca.
+
+```html
+<ul><li>Cadastrei uma listagem HTML</li></ul>
+```
+
+Outro teste que pode ser feito é enviar o javascript pela URL.
+
+Repare que a URL da página de busca possui o seguinte formato:
+
+```text
+/busca?q=
+```
+
+Assim, entre com a seguinte URL:
+
+```text
+/busca/?q=<script>alert("Executando XSS")</script>
+```
+
+Repare que o javascript também foi executado. Ou seja, temos brechas de segurança em envio de javascript via GET e também via POST.
+
+O teste abaixo mostra que podemos criar uma interface/formulário falso na aplicação do cliente. Entre no campo de busca ao acervo com o código abaixo:
+
+```html
+<div>
+    <h3>Sua sessão expirou</h3>
+
+    <form>
+        <label>Usuário</label>
+        <input type="text">
+
+        <label>Senha</label>
+        <input type="password">
+
+        <button>Entrar</button>
+    </form>
+</div>
+```
+
+Realize a busca e veja como isso pode ser perigoso.
+
+Para que não seja possível executar código javascript enviado por formulários ou URL nunca coloque o filtro `| safe` como na linha `<h5>Resultados para: <strong>{{ query | safe }}</strong></h5>` do arquivo `busca.html`.
+
+**Dica:** Não use safe em conteúdo fornecido pelo usuário, a menos que esse conteúdo tenha sido sanitizado adequadamente.
+
+Assim, iremos alterar novamente a linha:
+
+```html
+{% if query %}
+    <h5>Resultados para: <strong>{{ query | safe }}</strong></h5>
+{% endif %}
+```
+
+Por essa linha:
+
+```html
+{% if query %}
+    <h5>Resultados para: <strong>{{ query }}</strong></h5>
+{% endif %}
+```
+
+Dessa maneira, o Django irá transformar o script em algo equivalente a:
+
+```text
+&lt;script&gt;alert("XSS")&lt;/script&gt;
+```
+
+O navegador mostra apenas o texto, mas não executa o código:
+
+```text
+<script>alert("XSS")</script>
+```
+
+Isso é uma proteção muito importante do Django.
+
+**O que um XSS pode fazer?**
+
+Dependendo da aplicação, um XSS pode:
+
+* modificar o conteúdo da página;
+* executar ações em nome do usuário;
+* capturar informações exibidas na página;
+* redirecionar o usuário;
+* criar formulários falsos;
+* fazer requisições usando a sessão do usuário.
+
+Por isso, XSS é uma vulnerabilidade importante em aplicações web.
+
+### Entender o Ataque SQL Injection
+
+O SQL Injection (**SQLi**) é uma vulnerabilidade em que dados fornecidos pelo usuário acabam sendo interpretados como parte do comando SQL, permitindo alterar a consulta que a aplicação pretendia executar.
+
+Para mostrar como o SQL Injection funciona, iremos realizar uma alteração na forma como a busca é realizada. Para isso, altere a view `busca` para o código abaixo:
+
+```python
+...
+def busca(request):
+    query = request.GET.get("q")
+    livros = Livro.objects.raw(f"SELECT * FROM biblioteca_livro WHERE nome = '{query}'")
+    tccs = TCC.objects.raw(f"SELECT * FROM biblioteca_tcc WHERE titulo = '{query}'")
+    context = {
+        "livros": livros, 
+        "tccs": tccs, 
+        "query": query
+    }
+    template = loader.get_template('busca.html')
+    return HttpResponse(template.render(context, request))
+```
+
+Repare que no exemplo acima foi criado dois códigos SQL. Se o usuário buscar o nome de um livro ou TCC não haverá problemas. Assim, se o usuário digitar "O Senhor dos Anéis" e mandar buscar não haverá problemas.
+
+O problema aparece se o usuário fornecer algo como:
+
+```text
+' OR '1'='1
+```
+
+A consulta resultante seria:
+
+```sql
+SELECT * FROM biblioteca_livro WHERE nome = '' OR '1'='1';
+```
+
+Como a string "1" é igual a "1" então todos os livros serão exibidos. Da mesma forma todos os TCCs.
+
+Mas então como evitar SQL Injection no Django? Uma grande vantagem do Django é que o ORM já protege você na maioria das situações comuns de SQL Injection.
+
+Em vez de escrever:
+
+```sql
+sql = f"""SELECT * FROM biblioteca_livroWHERE titulo = '{titulo}'"""
+```
+
+faça:
+
+```python
+livros = Livro.objects.filter(titulo=titulo)
+```
+
+Se ainda assim for necessário escrever o código SQL, o correto é parametrizar. Veja o exemplo abaixo:
+
+```python
+livros = Livro.objects.raw("SELECT * FROM biblioteca_livro WHERE nome = %s", [query])
+```
+
+Dessa forma, não é possível realizar o ataque por SQL Injection.
+
+Antes de proceguir não esqueça de voltar o conteúdo da busca para o código original como abaixo:
+
+```python
+def busca(request):
+    query = request.GET.get("q")
+    livros = []
+    tccs = []
+    if query:
+        livros = Livro.objects.filter(
+            Q(nome__icontains=query) | Q(autor__icontains=query) | Q(ano__icontains=query)
+        )
+        tccs = TCC.objects.filter(
+            Q(titulo__icontains=query) | Q(autor__icontains=query) | Q(ano__icontains=query) | Q(orientador__icontains=query)
+        )
+    context = {
+        "livros": livros, 
+        "tccs": tccs, 
+        "query": query
+    }
+    template = loader.get_template('busca.html')
+    return HttpResponse(template.render(context, request))
+```
 
 ### Dockerizar a Aplicação
 
