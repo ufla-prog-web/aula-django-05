@@ -165,3 +165,18 @@ code2/
 code3/
 
 TODO.md
+
+# Django
+db.sqlite3
+staticfiles/
+
+# Arquivos de configuração local
+.env
+
+# Editor
+.vscode/
+.idea/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

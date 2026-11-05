@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.venv
+__pycache__
+*.py[cod]
+code/db.sqlite3
+code/staticfiles
+docs
+*.md
+!README.md
